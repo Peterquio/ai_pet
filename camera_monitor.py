@@ -1,49 +1,99 @@
-import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
 import cv2
 from PIL import Image, ImageTk
 
-janela = tk.Tk()
-janela.title("AI Pet - Monitor da Câmera")
-janela.geometry("800x600")
-janela.configure(bg="#1e1e1e")
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
 
-# Campo superior
-frame_topo = tk.Frame(janela, bg="#1e1e1e")
-frame_topo.pack(fill="x", padx=16, pady=12)
+def criar_janela():
+    janela = ctk.CTk()
+    janela.title("AI Pet - Monitor da Câmera")
+    janela.geometry("860x640")
+    janela.resizable(False, False)
 
-label_ip = tk.Label(
-    frame_topo,
-    text="IP da câmera:",
-    bg="#1e1e1e",
-    fg="white"
-)
-label_ip.pack(side="left")
+    container = ctk.CTkFrame(janela, corner_radius=18)
+    container.pack(fill="both", expand=True, padx=18, pady=18)
 
-entrada_ip = tk.Entry(frame_topo, width=35)
-entrada_ip.insert(0, "http://192.168.4.1")
-entrada_ip.pack(side="left", padx=8)
+    titulo = ctk.CTkLabel(
+        container,
+        text="Monitor da Câmera",
+        font=ctk.CTkFont(size=24, weight="bold")
+    )
+    titulo.pack(anchor="w", padx=22, pady=(22, 4))
 
-botao_conectar = tk.Button(frame_topo, text="Conectar")
-botao_conectar.pack(side="left")
+    subtitulo = ctk.CTkLabel(
+        container,
+        text="Visualização em tempo real da ESP32-CAM",
+        font=ctk.CTkFont(size=13),
+        text_color="gray70"
+    )
+    subtitulo.pack(anchor="w", padx=22, pady=(0, 18))
 
-# Status
-label_status = tk.Label(
-    janela,
-    text="Status: Desconectado",
-    bg="#1e1e1e",
-    fg="#ffcc66",
-    anchor="w"
-)
-label_status.pack(fill="x", padx=16)
+    ip_label = ctk.CTkLabel(container, text="Endereço da câmera")
+    ip_label.pack(anchor="w", padx=22)
 
-# Área da câmera
-label_video = tk.Label(
-    janela,
-    text="Imagem da câmera aparecerá aqui",
-    bg="#111111",
-    fg="#777777"
-)
-label_video.pack(fill="both", expand=True, padx=16, pady=16)
+    linha_conexao = ctk.CTkFrame(container, fg_color="transparent")
+    linha_conexao.pack(fill="x", padx=22, pady=(6, 14))
 
-janela.mainloop()
+    entrada_ip = ctk.CTkEntry(linha_conexao, height=38)
+    entrada_ip.insert(0, "http://192.168.4.1")
+    entrada_ip.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+    botao_conectar = ctk.CTkButton(
+        linha_conexao,
+        text="Conectar",
+        width=140,
+        height=38
+    )
+    botao_conectar.pack(side="right")
+
+    linha_config = ctk.CTkFrame(container, fg_color="transparent")
+    linha_config.pack(fill="x", padx=22, pady=(0, 12))
+
+    label_res = ctk.CTkLabel(
+        linha_config,
+        text="Resolução:"
+    )
+    label_res.pack(side="left")
+
+    combobox_res = ctk.CTkComboBox(
+        linha_config,
+        values=[
+            "UXGA (1600x1200)",
+            "SXGA (1280x1024)",
+            "XGA (1024x768)",
+            "SVGA (800x600)",
+            "VGA (640x480)",
+            "CIF (352x288)",
+            "QVGA (320x240)"
+        ],
+        width=200
+    )
+    combobox_res.set("VGA (640x480)")
+    combobox_res.pack(side="right")
+
+    status = ctk.CTkLabel(
+        container,
+        text="Status: aguardando conexão...",
+        text_color="gray70"
+    )
+    status.pack(anchor="w", padx=22, pady=(0, 14))
+
+    frame_video = ctk.CTkFrame(
+        container,
+        corner_radius=16,
+        fg_color="#111111"
+    )
+    frame_video.pack(fill="both", expand=True, padx=22, pady=(0, 22))
+
+    label_video = ctk.CTkLabel(
+        frame_video,
+        text="Preview da câmera",
+        text_color="gray50"
+    )
+    label_video.pack(fill="both", expand=True, padx=10, pady=10)
+
+    janela.mainloop()
+
+if __name__ == "__main__":
+    criar_janela()
