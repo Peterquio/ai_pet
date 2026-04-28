@@ -1,15 +1,20 @@
 #include "esp_camera.h"
 #include <WiFi.h>
+#include <Preferences.h>
 #include "camera_pins.h"
 
 // ===========================
 // Enter your WiFi credentials
 // ===========================
-const char* ssid = "POCO X7 Pro";
-const char* password = "peterquio2020";
+String ssidSalvo = "";
+String senhaSalva = "";
+Preferences preferencias;
 
 void startCameraServer();
 void setupLedFlash(int pin);
+bool conectarWiFi();
+void carregarCredenciaisWiFi();
+void iniciarModoConfiguracao();
 
 void setup() {
   Serial.begin(115200);
@@ -101,26 +106,79 @@ void setup() {
 #if defined(LED_GPIO_NUM)
   setupLedFlash(LED_GPIO_NUM);
 #endif
-  
-  WiFi.begin(ssid, password);
-  WiFi.setSleep(false);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  carregarCredenciaisWiFi();
+
+  if (conectarWiFi()) {
+    startCameraServer();
+
+    Serial.print("Camera Ready! Use 'http://");
+    Serial.print(WiFi.localIP());
+    Serial.println("' to connect");
+    Serial.println(WiFi.RSSI());
+  } else {
+    iniciarModoConfiguracao();
   }
-  Serial.println("");
-  Serial.println("WiFi connected");
 
-  startCameraServer();
-
-  Serial.print("Camera Ready! Use 'http://");
-  Serial.print(WiFi.localIP());
-  Serial.println("' to connect");
-  Serial.println(WiFi.RSSI());
 }
 
 void loop() {
   // Do nothing. Everything is done in another task by the web server
   delay(10000);
+}
+bool conectarWiFi() {
+  if (ssidSalvo == "") {
+    Serial.println("Nenhum SSID salvo.");
+    return false;
+  }
+
+  WiFi.begin(ssidSalvo.c_str(), senhaSalva.c_str());
+  WiFi.setSleep(false);
+
+  Serial.print("Conectando ao Wi-Fi");
+
+  int tentativas = 0;
+
+  while (WiFi.status() != WL_CONNECTED && tentativas < 20) {
+    delay(500);
+    Serial.print(".");
+    tentativas++;
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println();
+    Serial.println("Falha ao conectar no Wi-Fi");
+    return false;
+  }
+
+  Serial.println();
+  Serial.println("WiFi conectado");
+  Serial.print("IP da camera: ");
+  Serial.println(WiFi.localIP());
+
+  return true;
+}
+
+void carregarCredenciaisWiFi() {
+  preferencias.begin("wifi", true);
+
+  ssidSalvo = preferencias.getString("ssid", "");
+  senhaSalva = preferencias.getString("senha", "");
+
+  preferencias.end();
+
+  Serial.println("Credenciais carregadas da memoria.");
+  Serial.print("SSID salvo: ");
+  Serial.println(ssidSalvo);
+}
+
+void iniciarModoConfiguracao() {
+  Serial.println("Iniciando modo configuracao...");
+
+  WiFi.softAP("AI_PET_CONFIG", "aipet1234");
+
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("IP do modo AP: ");
+  Serial.println(IP);
+  startCameraServer();
 }

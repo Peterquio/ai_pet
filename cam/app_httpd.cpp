@@ -1,16 +1,3 @@
-// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 #include "esp_http_server.h"
 #include "esp_timer.h"
 #include "esp_camera.h"
@@ -19,6 +6,8 @@
 #include "esp32-hal-ledc.h"
 #include "sdkconfig.h"
 #include "camera_index.h"
+#include <Preferences.h>
+#include <WiFi.h>
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
 #include "esp32-hal-log.h"
@@ -1183,6 +1172,65 @@ static esp_err_t win_handler(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
+static esp_err_t salvar_wifi_handler(httpd_req_t *req)
+{
+    char *buf = NULL;
+    char ssid[64];
+    char senha[64];
+
+    if (parse_get(req, &buf) != ESP_OK) {
+        return ESP_FAIL;
+    }
+
+    if (httpd_query_key_value(buf, "ssid", ssid, sizeof(ssid)) != ESP_OK ||
+        httpd_query_key_value(buf, "senha", senha, sizeof(senha)) != ESP_OK) {
+        free(buf);
+        httpd_resp_send_404(req);
+        return ESP_FAIL;
+    }
+
+    free(buf);
+
+    Preferences preferencias;
+    preferencias.begin("wifi", false);
+    preferencias.putString("ssid", ssid);
+    preferencias.putString("senha", senha);
+    preferencias.end();
+
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_sendstr(req, "WiFi salvo. Reiniciando...");
+
+    delay(1000);
+    ESP.restart();
+
+    return ESP_OK;
+}
+
+static esp_err_t redes_handler(httpd_req_t *req)
+{
+    int quantidade = WiFi.scanNetworks();
+
+    String json = "[";
+
+    for (int i = 0; i < quantidade; i++) {
+        if (i > 0) {
+            json += ",";
+        }
+
+        json += "{";
+        json += "\"ssid\":\"" + WiFi.SSID(i) + "\",";
+        json += "\"rssi\":" + String(WiFi.RSSI(i)) + ",";
+        json += "\"protegida\":" + String(WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "false" : "true");
+        json += "}";
+    }
+
+    json += "]";
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, json.c_str(), json.length());
+}
+
 static esp_err_t index_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "text/html");
@@ -1231,6 +1279,13 @@ void startCameraServer()
         .handle_ws_control_frames = false,
         .supported_subprotocol = NULL
 #endif
+    };
+
+    httpd_uri_t redes_uri = {
+        .uri = "/redes",
+        .method = HTTP_GET,
+        .handler = redes_handler,
+        .user_ctx = NULL
     };
 
     httpd_uri_t cmd_uri = {
@@ -1283,6 +1338,13 @@ void startCameraServer()
         .handle_ws_control_frames = false,
         .supported_subprotocol = NULL
 #endif
+    };
+
+    httpd_uri_t salvar_wifi_uri = {
+        .uri = "/salvar-wifi",
+        .method = HTTP_GET,
+        .handler = salvar_wifi_handler,
+        .user_ctx = NULL
     };
 
     httpd_uri_t xclk_uri = {
@@ -1366,6 +1428,8 @@ void startCameraServer()
         httpd_register_uri_handler(camera_httpd, &status_uri);
         httpd_register_uri_handler(camera_httpd, &capture_uri);
         httpd_register_uri_handler(camera_httpd, &bmp_uri);
+        httpd_register_uri_handler(camera_httpd, &salvar_wifi_uri);
+        httpd_register_uri_handler(camera_httpd, &redes_uri);
 
         httpd_register_uri_handler(camera_httpd, &xclk_uri);
         httpd_register_uri_handler(camera_httpd, &reg_uri);
