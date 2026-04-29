@@ -1,0 +1,6 @@
+path: C:/dev/Outros/ai_pet/imagedata/cat
+train: images
+val: images
+
+names:
+  0: nuvem
