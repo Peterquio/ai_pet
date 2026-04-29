@@ -44,6 +44,7 @@ class App:
         self.conf = ctk.DoubleVar(value=0.45)
         self.salvar_vazio = ctk.BooleanVar()
 
+        self.cor_label = ctk.StringVar(value="#00ff66")
         self.animal = "Gato"
         self.nao_mostrar_aviso = False
 
@@ -62,6 +63,9 @@ class App:
 
         self.input(c, "Modelo YOLO", self.modelo)
         self.input(c, "Nome da label", self.label)
+
+        ctk.CTkLabel(c, text="Cor da label").pack(anchor="w")
+        ctk.CTkEntry(c, textvariable=self.cor_label, height=32).pack(fill="x", pady=(4, 8))
 
         ctk.CTkLabel(c, text="Confiança").pack(anchor="w")
         self.lbl_conf = ctk.CTkLabel(c, text="0.45", text_color="gray70")
@@ -219,13 +223,17 @@ class App:
             self.lbl_prog.configure(text=f"{i} / {total}")
 
         (base / "data.yaml").write_text(
-                    f"""path: {base}
-                    train: images
-                    val: images
+            f"""path: {base.as_posix()}
+        train: images
+        val: images
 
-                    names:
-                        0: {self.label.get()}
-                    """
+        names:
+          0: {self.label.get().strip()}
+
+        colors:
+          0: "{self.cor_label.get().strip()}"
+        """,
+            encoding="utf-8"
         )
 
         messagebox.showinfo("Sucesso", f"Finalizado!\n{total} imagens processadas")

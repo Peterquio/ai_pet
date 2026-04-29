@@ -26,6 +26,7 @@ class LeitorLabelsApp:
 
         self.imagens = []
         self.indice_atual = 0
+        self.imagens_sem_tag = []
 
         self.imagem_original = None
         self.imagem_tk = None
@@ -131,6 +132,18 @@ class LeitorLabelsApp:
 
         ctk.CTkLabel(
             self.sidebar,
+            text="⚠ Imagens sem tag",
+            font=ctk.CTkFont(size=14, weight="bold")
+        ).pack(anchor="w", padx=18, pady=(8, 4))
+
+        self.lista_alertas = ctk.CTkScrollableFrame(
+            self.sidebar,
+            height=120
+        )
+        self.lista_alertas.pack(fill="x", padx=18, pady=(0, 12))
+
+        ctk.CTkLabel(
+            self.sidebar,
             text="Labels da imagem",
             font=ctk.CTkFont(size=14, weight="bold")
         ).pack(anchor="w", padx=18, pady=(8, 4))
@@ -190,7 +203,10 @@ class LeitorLabelsApp:
         self.pasta_labels = self.pasta_dataset / "labels"
 
         if not self.pasta_images.exists():
-            messagebox.showerror("Erro", "A pasta selecionada não possui subpasta images.")
+            messagebox.showerror(
+                "Erro",
+                "A pasta selecionada não possui subpasta images."
+            )
             return
 
         self.pasta_labels.mkdir(exist_ok=True)
@@ -201,10 +217,15 @@ class LeitorLabelsApp:
         ]
 
         if not self.imagens:
-            messagebox.showwarning("Atenção", "Nenhuma imagem encontrada em images.")
+            messagebox.showwarning(
+                "Atenção",
+                "Nenhuma imagem encontrada em images."
+            )
             return
 
         self.carregar_nome_label_data_yaml()
+
+        self.atualizar_alertas()
 
         self.indice_atual = 0
         self.carregar_imagem_atual()
@@ -336,6 +357,58 @@ class LeitorLabelsApp:
                 fill=cor,
                 font=("Arial", 12, "bold")
             )
+
+    def imagem_sem_tag(self, caminho_imagem):
+        caminho_label = self.pasta_labels / f"{caminho_imagem.stem}.txt"
+
+        if not caminho_label.exists():
+            return True
+
+        conteudo = caminho_label.read_text(encoding="utf-8").strip()
+
+        if not conteudo:
+            return True
+
+        return False
+
+    def atualizar_alertas(self):
+        self.imagens_sem_tag.clear()
+
+        for i, img in enumerate(self.imagens):
+            if self.imagem_sem_tag(img):
+                self.imagens_sem_tag.append((i, img.name))
+
+        self.atualizar_ui_alertas()
+
+    def atualizar_ui_alertas(self):
+        if not hasattr(self, "lista_alertas"):
+            return
+
+        for widget in self.lista_alertas.winfo_children():
+            widget.destroy()
+
+        if not self.imagens_sem_tag:
+            ctk.CTkLabel(
+                self.lista_alertas,
+                text="Todas as imagens possuem tag ✔",
+                text_color="gray70"
+            ).pack(anchor="w", padx=6, pady=4)
+            return
+
+        for index, nome in self.imagens_sem_tag:
+            botao = ctk.CTkButton(
+                self.lista_alertas,
+                text=f"(!) {nome}",
+                height=28,
+                fg_color="#8a6a1f",
+                hover_color="#a37d25",
+                command=lambda i=index: self.ir_para_imagem(i)
+            )
+            botao.pack(fill="x", padx=4, pady=2)
+
+    def ir_para_imagem(self, index):
+        self.indice_atual = index
+        self.carregar_imagem_atual()
 
     def img_para_canvas(self, x, y):
         return (
@@ -471,6 +544,7 @@ class LeitorLabelsApp:
 
         caminho_label.write_text("\n".join(linhas), encoding="utf-8")
         self.salvar_data_yaml()
+        self.atualizar_alertas()
 
         messagebox.showinfo("Sucesso", "Alterações salvas com sucesso!")
 
